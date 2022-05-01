@@ -38,7 +38,7 @@ app.use(cookieParser());
 //serve static files
 app.use('/', express.static(path.join(__dirname, '/public')));
 
-app.use(verifyJWT);
+// app.use(verifyJWT);
 app.use('/states', require('./routes/api/states'));
 
 app.all('*', (req, res) => {
