@@ -5,27 +5,40 @@ const data = {
 
 const State = require('../model/State');
 
-const getAllStates = (req, res) => {
+const getAllStates = async (req, res) => {
     const contig = req.query?.contig;
+    let stateFromJson
     if (contig === 'true') {
-        res.json(data.states.filter(state => state.code !== 'AK' && state.code !== 'HI'))
+        stateFromJson = data.states.filter(state => state.code !== 'AK' && state.code !== 'HI');
     } else if (contig === 'false') {
-        res.json(data.states.filter(state => state.code === 'AK' || state.code === 'HI'))
+        stateFromJson = data.states.filter(state => state.code === 'AK' || state.code === 'HI');
     } else {
-        res.json(data.states);
+        stateFromJson = data.states;
     }
+
+    const statesInMongo = await State.find({}).exec();
+    const statesToReturn = stateFromJson.map(state => {
+        const stateFoundInMongo = statesInMongo.find(mongoState => mongoState.stateCode.toUpperCase() === state.code.toUpperCase());
+        if (stateFoundInMongo?.funfacts) {
+            return {...state, funfacts: stateFoundInMongo.funfacts};
+        } else {
+            return state;
+        }
+    });
+    res.send(statesToReturn);
 }
 
 const addFunFact = async (req, res) => {
-    const state = data.states.find(state => state.code === req.params.code);
+    const paramsCode = req.params.code.toUpperCase();
+    const state = data.states.find(state => state.code === paramsCode);
     if (!state) {
-        return res.status(404).json({ "message": `State Code ${req.params.code} not found` });
+        return res.status(404).json({ "message": `Invalid state abbreviation parameter` });
     }
-    const stateInMongo = await State.findOne({ stateCode: req.params.code }).exec();
+    const stateInMongo = await State.findOne({ stateCode: paramsCode }).exec();
     if (!stateInMongo) {
         try {
             const result = await State.create({
-                stateCode: req.params.code,
+                stateCode: paramsCode,
                 funfacts: req.body.funfacts
             });
 
@@ -35,7 +48,7 @@ const addFunFact = async (req, res) => {
         }
     } else {
         try {
-            stateInMongo.funfacts.push(req.body.funfacts)
+            stateInMongo.funfacts.push(...req.body.funfacts)
             const result = await stateInMongo.save();
             res.status(200).json(result);
         } catch (err) {
@@ -43,6 +56,7 @@ const addFunFact = async (req, res) => {
         }
     }
 }
+
 
 const createNewState = (req, res) => {
     const newState = {
@@ -82,58 +96,68 @@ const deleteState = (req, res) => {
     res.json(data.states);
 }
 
-const getState = (req, res) => {
-    const state = data.states.find(state => state.code === req.params.code);
+const getState = async (req, res) => {
+    const paramsCode = req.params.code.toUpperCase();
+    let state = data.states.find(state => state.code === paramsCode);
     if (!state) {
-        return res.status(404).json({ "message": `State Code ${req.params.code} not found` });
+        return res.status(404).json({ "message": `Invalid state abbreviation parameter` });
+    }
+    const stateInMongo = await State.findOne({ stateCode: paramsCode }).exec();
+    if (stateInMongo?.funfacts) {
+        state = {...state, funfacts: stateInMongo.funfacts}
     }
     res.json(state);
 }
 
 const getStateCapital = (req, res) => {
-    const state = data.states.find(state => state.code === req.params.code);
+    const paramsCode = req.params.code.toUpperCase();
+    const state = data.states.find(state => state.code === paramsCode);
     if (!state) {
-        return res.status(404).json({ "message": `State Code ${req.params.code} not found` });
+        return res.status(404).json({ "message": `Invalid state abbreviation parameter` });
     }
     res.json({state: state.state, capital: state.capital_city});
 }
 
 const getStateNickname = (req, res) => {
-    const state = data.states.find(state => state.code === req.params.code);
+    const paramsCode = req.params.code.toUpperCase();
+    const state = data.states.find(state => state.code === paramsCode);
     if (!state) {
-        return res.status(404).json({ "message": `State Code ${req.params.code} not found` });
+        return res.status(404).json({ "message": `Invalid state abbreviation parameter` });
     }
     res.json({state: state.state, nickname: state.nickname});
 }
 
 const getStatePopulation = (req, res) => {
-    const state = data.states.find(state => state.code === req.params.code);
+    const paramsCode = req.params.code.toUpperCase();
+    const state = data.states.find(state => state.code === paramsCode);
     if (!state) {
-        return res.status(404).json({ "message": `State Code ${req.params.code} not found` });
+        return res.status(404).json({ "message": `Invalid state abbreviation parameter` });
     }
-    res.json({state: state.state, population: state.population});
+    res.json({state: state.state, population: state.population.toLocaleString()});
 }
 
 const getStateAdmission = (req, res) => {
-    const state = data.states.find(state => state.code === req.params.code);
+    const paramsCode = req.params.code.toUpperCase();
+    const state = data.states.find(state => state.code === paramsCode);
     if (!state) {
-        return res.status(404).json({ "message": `State Code ${req.params.code} not found` });
+        return res.status(404).json({ "message": `Invalid state abbreviation parameter` });
     }
     res.json({state: state.state, admitted: state.admission_date});
 }
 
 const getFunfact = async (req, res) => {
-    const state = data.states.find(state => state.code === req.params.code);
+    const paramsCode = req.params.code.toUpperCase();
+    const state = data.states.find(state => state.code === paramsCode);
     if (!state) {
-        return res.status(404).json({ "message": `State Code ${req.params.code} not found` });
+        return res.status(404).json({ "message": `Invalid state abbreviation parameter` });
     }
-    const stateInMongo = await State.findOne({ stateCode: req.params.code }).exec();
+    const stateInMongo = await State.findOne({ stateCode: paramsCode }).exec();
     if (!stateInMongo) {
-        return res.status(404).json({ "message": `Fun fact not found` });
+        return res.status(404).json({ "message": `No Fun Facts found for ${state?.state}` });
     } else {
         const funfacts = stateInMongo.funfacts;
         const randomFact = funfacts[Math.floor(Math.random() * funfacts.length)];
-        res.status(200).json(randomFact);
+        res.status(200).json({funfact: randomFact});
     }
 }
 
