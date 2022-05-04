@@ -33,6 +33,10 @@ const addFunFact = async (req, res) => {
     const state = data.states.find(state => state.code === paramsCode);
     if (!state) {
         return res.status(404).json({ "message": `Invalid state abbreviation parameter` });
+    } else if (!req?.body?.funfacts) {
+        return res.send({message: "State fun facts value required"})
+    } else if (!Array.isArray(req?.body?.funfacts)) {
+        return res.send({message: "State fun facts value must be an array"})
     }
     const stateInMongo = await State.findOne({ stateCode: paramsCode }).exec();
     if (!stateInMongo) {
@@ -161,6 +165,55 @@ const getFunfact = async (req, res) => {
     }
 }
 
+const patchFunFact = async (req, res) => {
+    const paramsCode = req.params.code.toUpperCase();
+    const state = data.states.find(state => state.code === paramsCode);
+    if (!state) {
+        return res.status(404).json({ "message": `Invalid state abbreviation parameter` });
+    }
+    const index = req?.body?.index;
+    const funfact = req?.body?.funfact;
+    if (!index) {
+        return res.send({message: "State fun fact index value required"});
+    } else if (!funfact) {
+        return res.send({message: "State fun fact value required"});
+    }
+    const stateInMongo = await State.findOne({ stateCode: paramsCode }).exec();
+    if (!stateInMongo?.funfacts) {
+        return res.send({message: `No Fun Facts found for ${state?.state}`});
+    } else if (index < 1 ||  index > stateInMongo?.funfacts?.length) {
+        return res.send({message: `No Fun Fact found at that index for ${state?.state}'`});
+    }
+    let newFunFacts = stateInMongo.funfacts;
+    newFunFacts[index - 1] = funfact;
+    await State.updateOne({ stateCode: paramsCode }, {funfacts: newFunFacts}).exec();
+    const response = await State.findOne({ stateCode: paramsCode }).exec();
+    res.send(response);
+}
+
+const deleteFunFact = async (req, res) => {
+    const paramsCode = req.params.code.toUpperCase();
+    const state = data.states.find(state => state.code === paramsCode);
+    if (!state) {
+        return res.status(404).json({ "message": `Invalid state abbreviation parameter` });
+    }
+    const index = req?.body?.index;
+    if (!index) {
+        return res.send({message: "State fun fact index value required"});
+    }
+    const stateInMongo = await State.findOne({ stateCode: paramsCode }).exec();
+    if (!stateInMongo?.funfacts) {
+        return res.send({message: `No Fun Facts found for ${state?.state}`});
+    } else if (index < 1 ||  index > stateInMongo?.funfacts?.length) {
+        return res.send({message: `No Fun Fact found at that index for ${state?.state}'`});
+    }
+    let newFunFacts = stateInMongo.funfacts;
+    newFunFacts.splice(index - 1, 1)
+    await State.updateOne({ stateCode: paramsCode }, {funfacts: newFunFacts}).exec();
+    const response = await State.findOne({ stateCode: paramsCode }).exec();
+    res.send(response);
+}
+
 module.exports = {
     getAllStates,
     createNewState,
@@ -172,5 +225,7 @@ module.exports = {
     getStateNickname,
     getStatePopulation,
     addFunFact,
-    getFunfact
+    getFunfact,
+    patchFunFact,
+    deleteFunFact
 }
